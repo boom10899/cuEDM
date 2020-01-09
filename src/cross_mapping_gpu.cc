@@ -21,10 +21,14 @@ CrossMappingGPU::CrossMappingGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
 void CrossMappingGPU::run(std::vector<float> &rhos, const DataFrame &df,
                           const std::vector<uint32_t> &optimal_E)
 {
-    for (auto i = 0; i < df.n_columns(); i++) {
+    rhos.resize(ds.n_cols());
+
+    af::array data(ds.n_rows(), ds.n_cols(), ds.data());
+
+    for (auto i = 0; i < ds.n_cols(); i++) {
         const Series library = df.columns[i];
 
-        predict(rhos, library, df.columns, optimal_E);
+        predict(rhos, library, data, i, optimal_E);
 
         if (verbose) {
             std::cout << "Cross mapping for column #" << i << " done"
@@ -36,12 +40,12 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const DataFrame &df,
 // clang-format off
 void CrossMappingGPU::predict(std::vector<float> &rhos,
                               const Series &library,
-                              const std::vector<Series> &targets,
+                              af::array data,
+                              const uint32_t index,
                               const std::vector<uint32_t> &optimal_E)
 {
     Timer t1, t2;
 
-    // Compute k-NN lookup tables for library timeseries
     t1.start();
     #pragma omp parallel num_threads(n_devs)
     {
@@ -63,24 +67,17 @@ void CrossMappingGPU::predict(std::vector<float> &rhos,
     t1.stop();
 
     // Compute Simplex projection from the library to every target
-    t2.start();
-    #pragma omp parallel
-    {
-        std::vector<float> buffer;
+    for (auto i = 0; i < ds.timeseries.size(); i++) {
+        const auto E = optimal_E[i];
 
-        #pragma omp for
-        for (auto i = 0; i < targets.size(); i++) {
-            const auto E = optimal_E[i];
+        af::array target(data.col(i));
+        af::array prediction;
+        af::array shifted_target;
 
-            const Series target = targets[i];
-            Series prediction;
-            Series shifted_target;
+        simplex(prediction, luts[E - 1], target, E);
+        shift_target(shifted_target, target, E);
 
-            simplex->predict(prediction, buffer, luts[E - 1], target, E);
-            simplex->shift_target(shifted_target, target, E);
-
-            corrcoef(prediction, shifted_target);
-        }
+        rhos[i] = af::corrcoef<float>(prediction, af::transpose(shifted_target));
     }
     t2.stop();
 
@@ -90,3 +87,25 @@ void CrossMappingGPU::predict(std::vector<float> &rhos,
     }
 }
 // clang-format on
+
+void CrossMappingGPU::simplex(af::array &prediction, const LUT &lut,
+                              const af::array &target, uint32_t E)
+{
+    const auto shift = (E - 1) * tau + Tp;
+
+    const af::array idx(lut.n_cols(), lut.n_rows(), lut.indices.data());
+    const af::array dist(lut.n_cols(), lut.n_rows(), lut.distances.data());
+
+    const af::array tmp =
+        af::moddims(target(idx + shift), lut.n_cols(), lut.n_rows());
+    prediction = af::sum(tmp * dist);
+}
+
+void CrossMappingGPU::shift_target(af::array &shifted_target, const af::array &target,
+                  uint32_t E)
+{
+    const auto shift = (E - 1) * tau + Tp;
+    const auto n_prediction = target.dims(0);
+
+    shifted_target =  target(af::seq(shift, n_prediction - 1));
+}

@@ -1,6 +1,7 @@
 #ifndef __CROSS_MAPPING_GPU_H__
 #define __CROSS_MAPPING_GPU_H__
 
+#include <arrayfire.h>
 #include <memory>
 
 #include "cross_mapping.h"
@@ -17,12 +18,17 @@ public:
              const std::vector<uint32_t> &optimal_E) override;
 
     void predict(std::vector<float> &rhos, const Series &library,
-                 const std::vector<Series> &targets,
+                 af::array data, const uint32_t index,
                  const std::vector<uint32_t> &optimal_E);
+
+    void simplex(af::array &prediction, const LUT &lut, const af::array &target,
+                 uint32_t E);
+
+    void shift_target(af::array &shifted_target, const af::array &target,
+                      uint32_t E);
 
 protected:
     std::unique_ptr<NearestNeighbors> knn;
-    std::unique_ptr<Simplex> simplex;
     std::vector<LUT> luts;
     uint32_t n_devs;
 };
