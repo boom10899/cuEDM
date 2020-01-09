@@ -21,16 +21,14 @@ public:
                  af::array data, const uint32_t index,
                  const std::vector<uint32_t> &optimal_E);
 
-    void simplex(af::array &prediction, const LUT &lut, const af::array &target,
-                 uint32_t E);
+    void simplex(af::array &prediction, const af::array &idx,
+                 const af::array &dist, const af::array &target, uint32_t E);
 
-    void shift_target(af::array &shifted_target, const af::array &target,
-                      uint32_t E);
+        void shift_target(af::array &shifted_target, const af::array &target,
+                          uint32_t E);
 
 protected:
     std::unique_ptr<NearestNeighbors> knn;
-    std::vector<LUT> luts;
-    uint32_t n_devs;
 };
 
 #endif
