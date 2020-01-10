@@ -29,6 +29,7 @@ public:
 
 protected:
     std::unique_ptr<NearestNeighbors> knn;
+    uint32_t n_devs;
 };
 
 #endif
