@@ -12,8 +12,7 @@
 CrossMappingGPU::CrossMappingGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
                                  bool verbose)
     : CrossMapping(max_E, tau, Tp, verbose),
-      knn(new NearestNeighborsGPU(tau, Tp, verbose)),
-      simplex(new SimplexCPU(tau, Tp, verbose)), luts(max_E)
+      knn(new NearestNeighborsGPU(tau, Tp, verbose))
 {
     n_devs = af::getDeviceCount();
 }
@@ -21,11 +20,11 @@ CrossMappingGPU::CrossMappingGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
 void CrossMappingGPU::run(std::vector<float> &rhos, const DataFrame &df,
                           const std::vector<uint32_t> &optimal_E)
 {
-    rhos.resize(ds.n_cols());
+    rhos.resize(df.n_columns());
 
-    af::array data(ds.n_rows(), ds.n_cols(), ds.data());
+    af::array data(df.n_rows(), df.n_columns(), df.data());
 
-    for (auto i = 0; i < ds.n_cols(); i++) {
+    for (auto i = 0; i < df.n_columns(); i++) {
         const Series library = df.columns[i];
 
         predict(rhos, library, data, i, optimal_E);
@@ -45,8 +44,6 @@ void CrossMappingGPU::predict(std::vector<float> &rhos,
                               const std::vector<uint32_t> &optimal_E)
 {
     Timer t1, t2;
-
-    const Timeseries library = ds.timeseries[index];
     
     LUT lut;
     std::vector<af::array> idx(max_E);
@@ -58,14 +55,14 @@ void CrossMappingGPU::predict(std::vector<float> &rhos,
         knn->compute_lut(lut, library, library, E);
         lut.normalize();
 
-        idx[E - 1] = af::array(lut.n_cols(), lut.n_rows(), lut.indices.data());
-        dist[E - 1] = af::array(lut.n_cols(), lut.n_rows(), lut.distances.data());
+        idx[E - 1] = af::array(lut.n_columns(), lut.n_rows(), lut.indices.data());
+        dist[E - 1] = af::array(lut.n_columns(), lut.n_rows(), lut.distances.data());
     }
     t1.stop();
 
     t2.start();
     // Compute Simplex projection from the library to every target
-    for (auto i = 0; i < ds.timeseries.size(); i++) {
+    for (auto i = 0; i < data.dims(0); i++) {
         const auto E = optimal_E[i];
 
         af::array target(data.col(i));

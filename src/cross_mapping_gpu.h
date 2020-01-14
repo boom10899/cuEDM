@@ -1,13 +1,16 @@
 #ifndef __CROSS_MAPPING_GPU_H__
 #define __CROSS_MAPPING_GPU_H__
 
-#include <arrayfire.h>
 #include <memory>
 
 #include "cross_mapping.h"
 #include "lut.h"
 #include "nearest_neighbors_gpu.h"
 #include "simplex_cpu.h"
+
+namespace af {
+    class array;
+}
 
 class CrossMappingGPU : public CrossMapping
 {
