@@ -18,7 +18,8 @@
 
 template <class T>
 void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
-                        uint32_t max_E, const DataFrame &df, bool verbose)
+                        uint32_t max_E, const DataFrame &df, bool verbose,
+                        bool io_write)
 {
     // max_E=20, tau=1, Tp=1
     auto embedding_dim =
@@ -52,12 +53,16 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
 
     const auto dataspace = HighFive::DataSpace::From(optimal_E);
     auto dataset = file.createDataSet<uint32_t>("/embedding", dataspace);
-    dataset.write(optimal_E);
+
+    if (io_write) {
+        dataset.write(optimal_E);
+    }
 }
 
 template <class T>
 void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
-                   const std::vector<uint32_t> &optimal_E, bool verbose)
+                   const std::vector<uint32_t> &optimal_E, bool verbose,
+                   bool io_write)
 {
     std::vector<float> rhos(df.n_columns());
 
@@ -83,14 +88,16 @@ void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
         xmap->run(rhos, library, df.columns, optimal_E, timer_distance_cal,
                   timer_lookup);
 
-        Timer timer_io;
-        timer_io.start();
-        dataset.select({i, 0}, {1, df.n_columns()}).write(rhos);
-        timer_io.stop();
+        if(io_write) {
+            Timer timer_io;
+            timer_io.start();
+            dataset.select({i, 0}, {1, df.n_columns()}).write(rhos);
+            timer_io.stop();
 
-        if (verbose) {
-            std::cout << "IO write: " << timer_io.elapsed() << " [ms]"
-                      << std::endl;
+            if (verbose) {
+                std::cout << "IO write: " << timer_io.elapsed() << " [ms]"
+                        << std::endl;
+            }
         }
     }
     timer_cross_mapping.stop();
@@ -133,7 +140,8 @@ void usage(const std::string &app_name)
 int main(int argc, char *argv[])
 {
     argh::parser cmdl({"-t", "--tau", "-p", "--tp", "-e", "--maxe", "-x",
-                       "--kernel", "-d", "--dataset", "-v", "--verbose"});
+                       "--kernel", "-d", "--dataset", "-v", "--verbose",
+                       "--noio"});
     cmdl.parse(argc, argv);
 
     if (cmdl[{"-h", "--help"}]) {
@@ -167,11 +175,16 @@ int main(int argc, char *argv[])
     std::string dataset_name;
     cmdl({"d", "dataset"}) >> dataset_name;
     bool verbose = cmdl[{"v", "verbose"}];
+    bool io_write = !cmdl[{"noio"}];
 
     Timer timer_tot, timer_io, timer_simplex, timer_xmap;
 
     std::cout << "Input: " << input_fname << std::endl;
     std::cout << "Output: " << output_fname << std::endl;
+
+    if(!io_write) {
+        std::cout << "Benchmark Mode (No Output IO)" << std::endl;
+    }
 
     timer_tot.start();
     timer_io.start();
@@ -210,14 +223,14 @@ int main(int argc, char *argv[])
         std::cout << "Using CPU Simplex kernel" << std::endl;
 
         find_embedding_dim<EmbeddingDimCPU>(file, optimal_E, max_E, df,
-                                            verbose);
+                                            verbose, io_write);
     }
 #ifdef ENABLE_GPU_KERNEL
     else if (kernel_type == "gpu") {
         std::cout << "Using GPU Simplex kernel" << std::endl;
 
         find_embedding_dim<EmbeddingDimGPU>(file, optimal_E, max_E, df,
-                                            verbose);
+                                            verbose, io_write);
     }
 #endif
     else {
@@ -235,13 +248,13 @@ int main(int argc, char *argv[])
     if (kernel_type == "cpu") {
         std::cout << "Using CPU cross mapping kernel" << std::endl;
 
-        cross_mapping<CrossMappingCPU>(file, max_E, df, optimal_E, verbose);
+        cross_mapping<CrossMappingCPU>(file, max_E, df, optimal_E, verbose, io_write);
     }
 #ifdef ENABLE_GPU_KERNEL
     else if (kernel_type == "gpu") {
         std::cout << "Using GPU cross mapping kernel" << std::endl;
 
-        cross_mapping<CrossMappingGPU>(file, max_E, df, optimal_E, verbose);
+        cross_mapping<CrossMappingGPU>(file, max_E, df, optimal_E, verbose, io_write);
     }
 #endif
     else {
