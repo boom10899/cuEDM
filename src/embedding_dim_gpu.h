@@ -7,13 +7,15 @@
 #include "lut.h"
 #include "nearest_neighbors_gpu.h"
 #include "simplex_cpu.h"
+#include "timer.h"
 
 class EmbeddingDimGPU : public EmbeddingDim
 {
 public:
     EmbeddingDimGPU(uint32_t max_E, uint32_t tau, uint32_t Tp, bool verbose);
 
-    uint32_t run(const Series &ts) override;
+    uint32_t run(const Series &ts, Timer &timer_distance_cal,
+                 Timer &timer_lookup) override;
 
 protected:
     std::unique_ptr<NearestNeighbors> knn;

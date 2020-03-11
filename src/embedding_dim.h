@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "data_frame.h"
+#include "timer.h"
 
 class EmbeddingDim
 {
@@ -14,7 +15,7 @@ public:
     }
     virtual ~EmbeddingDim() {}
 
-    virtual uint32_t run(const Series &ts) = 0;
+    virtual uint32_t run(const Series &ts, Timer &timer_distance_cal, Timer &timer_lookup) = 0;
 
 protected:
     uint32_t max_E;

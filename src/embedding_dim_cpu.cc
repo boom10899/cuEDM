@@ -3,7 +3,8 @@
 #include "embedding_dim_cpu.h"
 #include "stats.h"
 
-uint32_t EmbeddingDimCPU::run(const Series &ts)
+uint32_t EmbeddingDimCPU::run(const Series &ts, Timer &timer_distance_cal,
+                              Timer &timer_lookup)
 {
     // Split input into two halves
     const auto library = ts.slice(0, ts.size() / 2);

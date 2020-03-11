@@ -21,7 +21,8 @@ EmbeddingDimGPU::EmbeddingDimGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
 }
 
 // clang-format off
-uint32_t EmbeddingDimGPU::run(const Series &ts)
+uint32_t EmbeddingDimGPU::run(const Series &ts, Timer &timer_distance_cal,
+                              Timer &timer_lookup)
 {
     #pragma omp parallel num_threads(n_devs)
     {
@@ -39,14 +40,18 @@ uint32_t EmbeddingDimGPU::run(const Series &ts)
 
         #pragma omp for schedule(dynamic)
         for (auto E = 1u; E <= max_E; E++) {
+            timer_distance_cal.start();
             knn->compute_lut(luts[dev_id], library, target, E, E + 1);
             luts[dev_id].normalize();
+            timer_distance_cal.stop();
 
+            timer_lookup.start();
             const auto prediction =
                 simplex->predict(buffers[dev_id], luts[dev_id], library, E);
             const auto shifted_target = simplex->shift_target(target, E);
 
             rhos[E - 1] = corrcoef(prediction, shifted_target);
+            timer_lookup.stop();
         }
     }
 

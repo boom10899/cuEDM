@@ -26,6 +26,11 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
 
     optimal_E.resize(df.n_columns());
 
+    Timer timer_embedding;
+    Timer timer_distance_cal;
+    Timer timer_lookup;
+
+    timer_embedding.start();
     for (auto i = 0u; i < df.n_columns(); i++) {
         if (verbose) {
             std::cout << "Find embedding dimension for column #" << i
@@ -33,10 +38,17 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
         }
 
         const auto ts = df.columns[i];
-        const auto best_E = embedding_dim->run(ts);
+        const auto best_E =
+            embedding_dim->run(ts, timer_distance_cal, timer_lookup);
 
         optimal_E[i] = best_E;
     }
+    timer_embedding.stop();
+
+    std::cout << "Embedding: " << timer_embedding.elapsed()
+              << " [ms] (Distance Calculation: " << timer_distance_cal.elapsed()
+              << " [ms] / Lookup: " << timer_lookup.elapsed() << " [ms])"
+              << std::endl;
 
     const auto dataspace = HighFive::DataSpace::From(optimal_E);
     auto dataset = file.createDataSet<uint32_t>("/embedding", dataspace);
@@ -56,6 +68,11 @@ void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
         HighFive::DataSpace({df.n_columns(), df.n_columns()});
     auto dataset = file.createDataSet<float>("/corrcoef", dataspace);
 
+    Timer timer_cross_mapping;
+    Timer timer_distance_cal;
+    Timer timer_lookup;
+
+    timer_cross_mapping.start();
     for (auto i = 0u; i < df.n_columns(); i++) {
         const auto library = df.columns[i];
 
@@ -63,7 +80,8 @@ void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
             std::cout << "Cross mapping from column #" << i << std::endl;
         }
 
-        xmap->run(rhos, library, df.columns, optimal_E);
+        xmap->run(rhos, library, df.columns, optimal_E, timer_distance_cal,
+                  timer_lookup);
 
         Timer timer_io;
         timer_io.start();
@@ -75,6 +93,12 @@ void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
                       << std::endl;
         }
     }
+    timer_cross_mapping.stop();
+
+    std::cout << "Cross Mapping: " << timer_cross_mapping.elapsed()
+              << " [ms] (Distance Calculation: " << timer_distance_cal.elapsed()
+              << " [ms] / Lookup: " << timer_lookup.elapsed() << " [ms])"
+              << std::endl;
 }
 
 bool ends_with(const std::string &str, const std::string &suffix)

@@ -7,7 +7,6 @@
 
 #include "cross_mapping_gpu.h"
 #include "stats.h"
-#include "timer.h"
 
 CrossMappingGPU::CrossMappingGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
                                  bool verbose)
@@ -21,12 +20,14 @@ CrossMappingGPU::CrossMappingGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
 // clang-format off
 void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
                           const std::vector<Series> &targets,
-                          const std::vector<uint32_t> &optimal_E)
+                          const std::vector<uint32_t> &optimal_E, Timer &timer_distance_cal,
+                          Timer &timer_lookup)
 {
     Timer t1, t2;
 
     // Compute k-NN lookup tables for library timeseries
     t1.start();
+    timer_distance_cal.start();
     #pragma omp parallel num_threads(n_devs)
     {
         #ifdef _OPENMP
@@ -44,11 +45,13 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
             luts[E - 1].normalize();
         }
     }
+    timer_distance_cal.stop();
     t1.stop();
 
     std::vector<float> buffer;
     // Compute Simplex projection from the library to every target
     t2.start();
+    timer_lookup.start();
     #pragma omp parallel for private(buffer) schedule(dynamic)
     for (auto i = 0u; i < targets.size(); i++) {
         const auto E = optimal_E[i];
@@ -60,6 +63,7 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
 
         rhos[i] = corrcoef(prediction, shifted_target);
     }
+    timer_lookup.stop();
     t2.stop();
 
     if (verbose) {

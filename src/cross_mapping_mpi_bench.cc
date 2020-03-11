@@ -83,9 +83,13 @@ protected:
 
     void do_task(nlohmann::json &result, const nlohmann::json &task) override
     {
+        Timer timer_distance_cal;
+        Timer timer_lookup;
+
         const auto id = task["id"];
         const auto ts = dataframe.columns[id];
-        const auto best_E = embedding_dim->run(ts);
+        const auto best_E =
+            embedding_dim->run(ts, timer_distance_cal, timer_lookup);
 
         result["id"] = id;
         result["E"] = best_E;
@@ -153,6 +157,9 @@ protected:
 
     void do_task(nlohmann::json &result, const nlohmann::json &task) override
     {
+        Timer timer_distance_cal;
+        Timer timer_lookup;
+
         const uint32_t start_id = task["start_id"];
         const uint32_t stop_id = task["stop_id"];
         uint32_t task_size = stop_id - start_id;
@@ -162,7 +169,8 @@ protected:
 
         for (uint32_t i = 0; i < task_size; i++) {
             const auto library = dataframe.columns[start_id + i];
-            xmap->run(rhos[i], library, dataframe.columns, optimal_E);
+            xmap->run(rhos[i], library, dataframe.columns, optimal_E,
+                      timer_distance_cal, timer_lookup);
         }
 
         timer_io.start();

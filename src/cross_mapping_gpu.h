@@ -7,6 +7,7 @@
 #include "lut.h"
 #include "nearest_neighbors_gpu.h"
 #include "simplex_cpu.h"
+#include "timer.h"
 
 class CrossMappingGPU : public CrossMapping
 {
@@ -15,7 +16,8 @@ public:
 
     void run(std::vector<float> &rhos, const Series &library,
              const std::vector<Series> &targets,
-             const std::vector<uint32_t> &optimal_E) override;
+             const std::vector<uint32_t> &optimal_E, Timer &timer_distance_cal,
+             Timer &timer_lookup) override;
 
 protected:
     std::unique_ptr<NearestNeighbors> knn;
