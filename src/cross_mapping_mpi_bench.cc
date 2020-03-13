@@ -83,13 +83,13 @@ protected:
 
     void do_task(nlohmann::json &result, const nlohmann::json &task) override
     {
-        Timer timer_distance_cal;
-        Timer timer_lookup;
+        double timer_knn_elapsed;
+        double timer_lookup_elapsed;
 
         const auto id = task["id"];
         const auto ts = dataframe.columns[id];
         const auto best_E =
-            embedding_dim->run(ts, timer_distance_cal, timer_lookup);
+            embedding_dim->run(ts, timer_knn_elapsed, timer_lookup_elapsed);
 
         result["id"] = id;
         result["E"] = best_E;

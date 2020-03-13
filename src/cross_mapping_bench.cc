@@ -28,8 +28,8 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
     optimal_E.resize(df.n_columns());
 
     Timer timer_embedding;
-    Timer timer_distance_cal;
-    Timer timer_lookup;
+    double timer_knn_elasped;
+    double timer_loopkup_elasped;
 
     timer_embedding.start();
     for (auto i = 0u; i < df.n_columns(); i++) {
@@ -40,15 +40,15 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
 
         const auto ts = df.columns[i];
         const auto best_E =
-            embedding_dim->run(ts, timer_distance_cal, timer_lookup);
+            embedding_dim->run(ts, timer_knn_elasped, timer_loopkup_elasped);
 
         optimal_E[i] = best_E;
     }
     timer_embedding.stop();
 
     std::cout << "Embedding: " << timer_embedding.elapsed()
-              << " [ms] (Distance Calculation: " << timer_distance_cal.elapsed()
-              << " [ms] / Lookup: " << timer_lookup.elapsed() << " [ms])"
+              << " [ms] (kNN: " << timer_knn_elasped
+              << " [ms] / Lookup: " << timer_loopkup_elasped << " [ms])"
               << std::endl;
 
     const auto dataspace = HighFive::DataSpace::From(optimal_E);
@@ -74,7 +74,7 @@ void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
     auto dataset = file.createDataSet<float>("/corrcoef", dataspace);
 
     Timer timer_cross_mapping;
-    Timer timer_distance_cal;
+    Timer timer_knn;
     Timer timer_lookup;
 
     timer_cross_mapping.start();
@@ -85,10 +85,10 @@ void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
             std::cout << "Cross mapping from column #" << i << std::endl;
         }
 
-        xmap->run(rhos, library, df.columns, optimal_E, timer_distance_cal,
+        xmap->run(rhos, library, df.columns, optimal_E, timer_knn,
                   timer_lookup);
 
-        if(io_write) {
+        if (io_write) {
             Timer timer_io;
             timer_io.start();
             dataset.select({i, 0}, {1, df.n_columns()}).write(rhos);
@@ -96,14 +96,14 @@ void cross_mapping(HighFive::File file, uint32_t max_E, const DataFrame &df,
 
             if (verbose) {
                 std::cout << "IO write: " << timer_io.elapsed() << " [ms]"
-                        << std::endl;
+                          << std::endl;
             }
         }
     }
     timer_cross_mapping.stop();
 
     std::cout << "Cross Mapping: " << timer_cross_mapping.elapsed()
-              << " [ms] (Distance Calculation: " << timer_distance_cal.elapsed()
+              << " [ms] (kNN: " << timer_knn.elapsed()
               << " [ms] / Lookup: " << timer_lookup.elapsed() << " [ms])"
               << std::endl;
 }
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
     std::cout << "Input: " << input_fname << std::endl;
     std::cout << "Output: " << output_fname << std::endl;
 
-    if(!io_write) {
+    if (!io_write) {
         std::cout << "Benchmark Mode (No Output IO)" << std::endl;
     }
 
@@ -222,15 +222,15 @@ int main(int argc, char *argv[])
     if (kernel_type == "cpu") {
         std::cout << "Using CPU Simplex kernel" << std::endl;
 
-        find_embedding_dim<EmbeddingDimCPU>(file, optimal_E, max_E, df,
-                                            verbose, io_write);
+        find_embedding_dim<EmbeddingDimCPU>(file, optimal_E, max_E, df, verbose,
+                                            io_write);
     }
 #ifdef ENABLE_GPU_KERNEL
     else if (kernel_type == "gpu") {
         std::cout << "Using GPU Simplex kernel" << std::endl;
 
-        find_embedding_dim<EmbeddingDimGPU>(file, optimal_E, max_E, df,
-                                            verbose, io_write);
+        find_embedding_dim<EmbeddingDimGPU>(file, optimal_E, max_E, df, verbose,
+                                            io_write);
     }
 #endif
     else {
@@ -248,13 +248,15 @@ int main(int argc, char *argv[])
     if (kernel_type == "cpu") {
         std::cout << "Using CPU cross mapping kernel" << std::endl;
 
-        cross_mapping<CrossMappingCPU>(file, max_E, df, optimal_E, verbose, io_write);
+        cross_mapping<CrossMappingCPU>(file, max_E, df, optimal_E, verbose,
+                                       io_write);
     }
 #ifdef ENABLE_GPU_KERNEL
     else if (kernel_type == "gpu") {
         std::cout << "Using GPU cross mapping kernel" << std::endl;
 
-        cross_mapping<CrossMappingGPU>(file, max_E, df, optimal_E, verbose, io_write);
+        cross_mapping<CrossMappingGPU>(file, max_E, df, optimal_E, verbose,
+                                       io_write);
     }
 #endif
     else {

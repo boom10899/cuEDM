@@ -97,14 +97,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Timer timer_distance_cal;
-    Timer timer_lookup;
+    double timer_knn_elapsed;
+    double timer_lookup_elapsed;
 
     for (auto i = 0u; i < df.columns.size(); i++) {
         std::cout << "Simplex projection for timeseries #" << i << ": ";
 
         const auto best_E =
-            embedding_dim->run(df.columns[i], timer_distance_cal, timer_lookup);
+            embedding_dim->run(df.columns[i], timer_knn_elapsed, timer_lookup_elapsed);
 
         if (verbose) {
             std::cout << "best E=" << best_E << std::endl;

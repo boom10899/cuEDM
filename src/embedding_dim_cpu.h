@@ -19,8 +19,8 @@ public:
     {
     }
 
-    uint32_t run(const Series &ts, Timer &timer_distance_cal,
-                 Timer &timer_lookup) override;
+    uint32_t run(const Series &ts, double &timer_knn_elapsed,
+                 double &timer_lookup_elapsed) override;
 
 protected:
     std::unique_ptr<NearestNeighbors> knn;

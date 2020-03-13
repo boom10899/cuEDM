@@ -16,7 +16,7 @@ public:
 
     void run(std::vector<float> &rhos, const Series &library,
              const std::vector<Series> &targets,
-             const std::vector<uint32_t> &optimal_E, Timer &timer_distance_cal,
+             const std::vector<uint32_t> &optimal_E, Timer &timer_knn,
              Timer &timer_lookup) override;
 
 protected:

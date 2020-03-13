@@ -20,14 +20,14 @@ CrossMappingGPU::CrossMappingGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
 // clang-format off
 void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
                           const std::vector<Series> &targets,
-                          const std::vector<uint32_t> &optimal_E, Timer &timer_distance_cal,
+                          const std::vector<uint32_t> &optimal_E, Timer &timer_knn,
                           Timer &timer_lookup)
 {
     Timer t1, t2;
 
     // Compute k-NN lookup tables for library timeseries
     t1.start();
-    timer_distance_cal.start();
+    timer_knn.start();
     #pragma omp parallel num_threads(n_devs)
     {
         #ifdef _OPENMP
@@ -45,7 +45,7 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
             luts[E - 1].normalize();
         }
     }
-    timer_distance_cal.stop();
+    timer_knn.stop();
     t1.stop();
 
     std::vector<float> buffer;

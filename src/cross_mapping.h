@@ -18,7 +18,7 @@ public:
     virtual void run(std::vector<float> &rhos, const Series &library,
                      const std::vector<Series> &targets,
                      const std::vector<uint32_t> &optimal_E,
-                     Timer &timer_distance_cal, Timer &timer_lookup) = 0;
+                     Timer &timer_knn, Timer &timer_lookup) = 0;
 
 protected:
     uint32_t max_E;

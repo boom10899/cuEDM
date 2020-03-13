@@ -15,7 +15,8 @@ public:
     }
     virtual ~EmbeddingDim() {}
 
-    virtual uint32_t run(const Series &ts, Timer &timer_distance_cal, Timer &timer_lookup) = 0;
+    virtual uint32_t run(const Series &ts, double &timer_knn_elapsed,
+                         double &timer_lookup_elapsed) = 0;
 
 protected:
     uint32_t max_E;
