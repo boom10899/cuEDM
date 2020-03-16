@@ -24,6 +24,9 @@ EmbeddingDimGPU::EmbeddingDimGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
 uint32_t EmbeddingDimGPU::run(const Series &ts, double &timer_knn_elapsed,
                               double &timer_lookup_elapsed)
 {
+    double timer_knn_sum = 0;
+    double timer_lookup_sum = 0;
+
     #pragma omp parallel num_threads(n_devs)
     {
         Timer timer_knn;
@@ -59,16 +62,16 @@ uint32_t EmbeddingDimGPU::run(const Series &ts, double &timer_knn_elapsed,
 
         #pragma omp critical 
         {
-            timer_knn_elapsed += timer_knn.elapsed();
-            timer_lookup_elapsed += timer_lookup.elapsed();
+            timer_knn_sum += timer_knn.elapsed();
+            timer_lookup_sum += timer_lookup.elapsed();
         }
     }
 
     const auto it = std::max_element(rhos.begin(), rhos.end());
     const auto best_E = it - rhos.begin() + 1;
 
-    timer_knn_elapsed = timer_knn_elapsed / n_devs;
-    timer_lookup_elapsed = timer_lookup_elapsed / n_devs;
+    timer_knn_elapsed += timer_knn_sum / n_devs;
+    timer_lookup_elapsed += timer_lookup_sum / n_devs;
 
     return best_E;
 }

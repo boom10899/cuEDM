@@ -28,8 +28,8 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
     optimal_E.resize(df.n_columns());
 
     Timer timer_embedding;
-    double timer_knn_elasped;
-    double timer_loopkup_elasped;
+    double timer_knn_elasped = 0;
+    double timer_loopkup_elasped = 0;
 
     timer_embedding.start();
     for (auto i = 0u; i < df.n_columns(); i++) {
