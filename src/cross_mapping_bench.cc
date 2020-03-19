@@ -208,16 +208,17 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    HighFive::File file(output_fname, HighFive::File::Overwrite);
+
     timer_io.stop();
 
     std::cout << "Read input dataset (" << df.n_rows() << " rows, "
               << df.n_columns() << " columns) in " << timer_io.elapsed()
               << " [ms]" << std::endl;
 
-    HighFive::File file(output_fname, HighFive::File::Overwrite);
-    std::vector<uint32_t> optimal_E;
-
     timer_simplex.start();
+
+    std::vector<uint32_t> optimal_E;
 
     if (kernel_type == "cpu") {
         std::cout << "Using CPU Simplex kernel" << std::endl;
