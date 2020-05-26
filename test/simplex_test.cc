@@ -30,7 +30,10 @@ template <class T, class U> void simplex_test_common(int E)
     auto simplex = std::unique_ptr<Simplex>(new U(tau, Tp, true));
     LUT lut;
 
-    knn->compute_lut(lut, library, target, E, E + 1);
+    Timer timer_cpu_to_gpu;
+    Timer timer_gpu_to_cpu;
+
+    knn->compute_lut(lut, library, target, E, E + 1, timer_cpu_to_gpu, timer_gpu_to_cpu);
     lut.normalize();
 
     std::vector<float> buffer;

@@ -16,7 +16,8 @@ NearestNeighborsGPU::NearestNeighborsGPU(uint32_t tau, uint32_t Tp,
 
 void NearestNeighborsGPU::compute_lut(LUT &out, const Series &library,
                                       const Series &target, uint32_t E,
-                                      uint32_t top_k)
+                                      uint32_t top_k, Timer &timer_cpu_to_gpu,
+                                      Timer &timer_gpu_to_cpu)
 {
     const auto shift = (E - 1) * tau + Tp;
 
@@ -62,9 +63,11 @@ void NearestNeighborsGPU::compute_lut(LUT &out, const Series &library,
         }
     }
 
+    timer_cpu_to_gpu.start();
     // Copy embedded blocks to GPU
     af::array library_block(library.size(), E, library_block_host.data());
     af::array target_block(target.size(), E, target_block_host.data());
+    timer_cpu_to_gpu.stop();
 
     // Compute k-nearest neighbors
     af::nearestNeighbour(idx, dist, target_block, library_block, 1, top_k + 1,
@@ -75,9 +78,11 @@ void NearestNeighborsGPU::compute_lut(LUT &out, const Series &library,
     std::vector<uint32_t> idx_host(target.size() * (top_k + 1));
     std::vector<float> dist_host(target.size() * (top_k + 1));
 
+    timer_gpu_to_cpu.start();
     // Copy distances and indices to CPU
     idx.host(idx_host.data());
     dist.host(dist_host.data());
+    timer_gpu_to_cpu.stop();
 
     out.resize(n_target, top_k);
 

@@ -20,6 +20,12 @@ public:
                      const std::vector<uint32_t> &optimal_E,
                      Timer &timer_knn, Timer &timer_lookup) = 0;
 
+    virtual double get_timer_cpu_to_gpu_sum() = 0;
+    virtual double get_timer_gpu_to_cpu_sum() = 0;
+
+    virtual double get_timer_cpu_to_gpu_elapsed() = 0;
+    virtual double get_timer_gpu_to_cpu_elapsed() = 0;
+
 protected:
     uint32_t max_E;
     uint32_t tau;

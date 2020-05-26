@@ -21,7 +21,10 @@ template <class T> void knn_test_common(int E)
     auto knn = std::unique_ptr<NearestNeighbors>(new T(tau, Tp, true));
     LUT lut;
 
-    knn->compute_lut(lut, df1.columns[0], df1.columns[0], E, k);
+    Timer timer_cpu_to_gpu;
+    Timer timer_gpu_to_cpu;
+
+    knn->compute_lut(lut, df1.columns[0], df1.columns[0], E, k, timer_cpu_to_gpu, timer_gpu_to_cpu);
 
     REQUIRE(lut.n_rows() == df1.n_rows() - (E - 1));
     REQUIRE(lut.n_columns() == k);

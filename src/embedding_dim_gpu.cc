@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <iostream>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -21,16 +22,19 @@ EmbeddingDimGPU::EmbeddingDimGPU(uint32_t max_E, uint32_t tau, uint32_t Tp,
 }
 
 // clang-format off
-uint32_t EmbeddingDimGPU::run(const Series &ts, double &timer_knn_elapsed,
-                              double &timer_lookup_elapsed)
+uint32_t EmbeddingDimGPU::run(const Series &ts)
 {
-    double timer_knn_sum = 0;
-    double timer_lookup_sum = 0;
-
     #pragma omp parallel num_threads(n_devs)
     {
         Timer timer_knn;
         Timer timer_lookup;
+        Timer timer_cpu_to_gpu;
+        Timer timer_gpu_to_cpu;
+
+        timer_knn_sum = 0;
+        timer_lookup_sum = 0;
+        timer_cpu_to_gpu_sum = 0;
+        timer_gpu_to_cpu_sum = 0;
 
         #ifdef _OPENMP
         uint32_t dev_id = omp_get_thread_num();
@@ -47,7 +51,7 @@ uint32_t EmbeddingDimGPU::run(const Series &ts, double &timer_knn_elapsed,
         #pragma omp for schedule(dynamic)
         for (auto E = 1u; E <= max_E; E++) {
             timer_knn.start();
-            knn->compute_lut(luts[dev_id], library, target, E, E + 1);
+            knn->compute_lut(luts[dev_id], library, target, E, E + 1, timer_cpu_to_gpu, timer_gpu_to_cpu);
             luts[dev_id].normalize();
             timer_knn.stop();
 
@@ -64,6 +68,8 @@ uint32_t EmbeddingDimGPU::run(const Series &ts, double &timer_knn_elapsed,
         {
             timer_knn_sum += timer_knn.elapsed();
             timer_lookup_sum += timer_lookup.elapsed();
+            timer_cpu_to_gpu_sum += timer_cpu_to_gpu.elapsed();
+            timer_gpu_to_cpu_sum += timer_gpu_to_cpu.elapsed();
         }
     }
 
@@ -75,4 +81,15 @@ uint32_t EmbeddingDimGPU::run(const Series &ts, double &timer_knn_elapsed,
 
     return best_E;
 }
+
+double EmbeddingDimGPU::get_timer_knn_sum() { return timer_knn_sum; }
+double EmbeddingDimGPU::get_timer_lookup_sum() { return timer_lookup_sum; }
+double EmbeddingDimGPU::get_timer_cpu_to_gpu_sum() { return timer_cpu_to_gpu_sum; }
+double EmbeddingDimGPU::get_timer_gpu_to_cpu_sum() { return timer_gpu_to_cpu_sum; }
+
+double EmbeddingDimGPU::get_timer_knn_elapsed() { return timer_knn_elapsed; }
+double EmbeddingDimGPU::get_timer_lookup_elapsed() { return timer_lookup_elapsed; }
+double EmbeddingDimGPU::get_timer_cpu_to_gpu_elapsed() { return timer_cpu_to_gpu_elapsed; }
+double EmbeddingDimGPU::get_timer_gpu_to_cpu_elapsed() { return timer_gpu_to_cpu_elapsed; }
+
 // clang-format on

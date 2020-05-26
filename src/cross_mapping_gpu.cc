@@ -25,6 +25,12 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
 {
     Timer t1, t2;
 
+    Timer timer_cpu_to_gpu;
+    Timer timer_gpu_to_cpu;
+
+    timer_cpu_to_gpu_sum = 0;
+    timer_gpu_to_cpu_sum = 0;
+
     // Compute k-NN lookup tables for library timeseries
     t1.start();
     timer_knn.start();
@@ -43,6 +49,12 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
         for (auto E = 1u; E <= max_E; E++) {
             knn->compute_lut(luts[E - 1], library, library, E);
             luts[E - 1].normalize();
+        }
+
+        #pragma omp critical 
+        {
+            timer_cpu_to_gpu_sum += timer_cpu_to_gpu.elapsed();
+            timer_gpu_to_cpu_sum += timer_gpu_to_cpu.elapsed();
         }
     }
     timer_knn.stop();
@@ -71,4 +83,11 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
                   << t2.elapsed() << " [ms]" << std::endl;
     }
 }
+
+double CrossMappingGPU::get_timer_cpu_to_gpu_sum() { return timer_cpu_to_gpu_sum; }
+double CrossMappingGPU::get_timer_gpu_to_cpu_sum() { return timer_gpu_to_cpu_sum; }
+
+double CrossMappingGPU::get_timer_cpu_to_gpu_elapsed() { return timer_cpu_to_gpu_elapsed; }
+double CrossMappingGPU::get_timer_gpu_to_cpu_elapsed() { return timer_gpu_to_cpu_elapsed; }
+
 // clang-format on

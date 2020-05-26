@@ -14,7 +14,8 @@ NearestNeighborsCPU::NearestNeighborsCPU(uint32_t tau, uint32_t Tp,
 // clang-format off
 void NearestNeighborsCPU::compute_lut(LUT &out, const Series &library,
                                       const Series &target, uint32_t E,
-                                      uint32_t top_k)
+                                      uint32_t top_k, Timer &timer_cpu_to_gpu,
+                                      Timer &timer_gpu_to_cpu)
 {
     const auto shift = (E - 1) * tau + Tp;
 

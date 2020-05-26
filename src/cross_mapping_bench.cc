@@ -28,8 +28,8 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
     optimal_E.resize(df.n_columns());
 
     Timer timer_embedding;
-    double timer_knn_elasped = 0;
-    double timer_loopkup_elasped = 0;
+    double timer_knn_elapsed = 0;
+    double timer_lookup_elapsed = 0;
 
     timer_embedding.start();
     for (auto i = 0u; i < df.n_columns(); i++) {
@@ -40,15 +40,18 @@ void find_embedding_dim(HighFive::File file, std::vector<uint32_t> &optimal_E,
 
         const auto ts = df.columns[i];
         const auto best_E =
-            embedding_dim->run(ts, timer_knn_elasped, timer_loopkup_elasped);
+            embedding_dim->run(ts);
+
+        timer_knn_elapsed = embedding_dim->get_timer_knn_elapsed();
+        timer_lookup_elapsed = embedding_dim->get_timer_lookup_elapsed();
 
         optimal_E[i] = best_E;
     }
     timer_embedding.stop();
 
     std::cout << "Embedding: " << timer_embedding.elapsed()
-              << " [ms] (kNN: " << timer_knn_elasped
-              << " [ms] / Lookup: " << timer_loopkup_elasped << " [ms])"
+              << " [ms] (kNN: " << timer_knn_elapsed
+              << " [ms] / Lookup: " << timer_lookup_elapsed << " [ms])"
               << std::endl;
 
     const auto dataspace = HighFive::DataSpace::From(optimal_E);

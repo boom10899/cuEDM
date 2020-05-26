@@ -15,8 +15,17 @@ public:
     }
     virtual ~EmbeddingDim() {}
 
-    virtual uint32_t run(const Series &ts, double &timer_knn_elapsed,
-                         double &timer_lookup_elapsed) = 0;
+    virtual uint32_t run(const Series &ts) = 0;
+
+    virtual double get_timer_knn_sum() = 0;
+    virtual double get_timer_lookup_sum() = 0;
+    virtual double get_timer_cpu_to_gpu_sum() = 0;
+    virtual double get_timer_gpu_to_cpu_sum() = 0; 
+
+    virtual double get_timer_knn_elapsed() = 0;
+    virtual double get_timer_lookup_elapsed() = 0;
+    virtual double get_timer_cpu_to_gpu_elapsed() = 0;
+    virtual double get_timer_gpu_to_cpu_elapsed() = 0;
 
 protected:
     uint32_t max_E;

@@ -24,12 +24,15 @@ void run_common(const DataFrame &df, uint32_t max_E, uint32_t tau,
 
     for (const auto &ts : df.columns) {
         Timer timer;
+        Timer timer_cpu_to_gpu;
+        Timer timer_gpu_to_cpu;
+
         timer.start();
 
         LUT out;
 
         for (auto E = 1u; E <= max_E; E++) {
-            kernel->compute_lut(out, ts, ts, E, top_k);
+            kernel->compute_lut(out, ts, ts, E, top_k, timer_cpu_to_gpu, timer_gpu_to_cpu);
         }
 
         timer.stop();
