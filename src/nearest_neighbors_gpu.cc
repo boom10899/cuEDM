@@ -1,5 +1,6 @@
 #include <limits>
 #include <vector>
+#include <iostream>
 
 #include <arrayfire.h>
 
@@ -83,6 +84,8 @@ void NearestNeighborsGPU::compute_lut(LUT &out, const Series &library,
     idx.host(idx_host.data());
     dist.host(dist_host.data());
     timer_gpu_to_cpu.stop();
+
+    // std::cout << timer_cpu_to_gpu.elapsed() << " | " << timer_gpu_to_cpu.elapsed() << std::endl;
 
     out.resize(n_target, top_k);
 

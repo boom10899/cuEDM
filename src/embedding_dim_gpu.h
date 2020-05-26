@@ -43,6 +43,11 @@ protected:
     double timer_lookup_elapsed = 0;
     double timer_cpu_to_gpu_elapsed = 0;
     double timer_gpu_to_cpu_elapsed = 0;
+
+    double timer_knn_total = 0;
+    double timer_lookup_total = 0;
+    double timer_cpu_to_gpu_total = 0;
+    double timer_gpu_to_cpu_total = 0;
 };
 
 #endif

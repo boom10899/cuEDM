@@ -25,17 +25,17 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
 {
     Timer t1, t2;
 
-    Timer timer_cpu_to_gpu;
-    Timer timer_gpu_to_cpu;
-
-    timer_cpu_to_gpu_sum = 0;
-    timer_gpu_to_cpu_sum = 0;
-
     // Compute k-NN lookup tables for library timeseries
     t1.start();
     timer_knn.start();
     #pragma omp parallel num_threads(n_devs)
     {
+        Timer timer_cpu_to_gpu;
+        Timer timer_gpu_to_cpu;
+
+        timer_cpu_to_gpu_sum = 0;
+        timer_gpu_to_cpu_sum = 0;
+
         #ifdef _OPENMP
         uint32_t dev_id = omp_get_thread_num();
         #else
@@ -47,7 +47,7 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
         // Compute lookup tables for library timeseries
         #pragma omp for schedule(dynamic)
         for (auto E = 1u; E <= max_E; E++) {
-            knn->compute_lut(luts[E - 1], library, library, E);
+            knn->compute_lut(luts[E - 1], library, library, E, E + 1, timer_cpu_to_gpu, timer_gpu_to_cpu);
             luts[E - 1].normalize();
         }
 
@@ -78,6 +78,11 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
     timer_lookup.stop();
     t2.stop();
 
+    timer_knn_elapsed = t1.elapsed();
+    timer_lookup_elapsed = t2.elapsed();
+    timer_cpu_to_gpu_elapsed = timer_cpu_to_gpu_sum / n_devs;
+    timer_gpu_to_cpu_elapsed = timer_gpu_to_cpu_sum / n_devs;
+
     if (verbose) {
         std::cout << "k-NN: " << t1.elapsed() << " [ms], Simplex: "
                   << t2.elapsed() << " [ms]" << std::endl;
@@ -87,6 +92,8 @@ void CrossMappingGPU::run(std::vector<float> &rhos, const Series &library,
 double CrossMappingGPU::get_timer_cpu_to_gpu_sum() { return timer_cpu_to_gpu_sum; }
 double CrossMappingGPU::get_timer_gpu_to_cpu_sum() { return timer_gpu_to_cpu_sum; }
 
+double CrossMappingGPU::get_timer_knn_elapsed() { return timer_knn_elapsed; }
+double CrossMappingGPU::get_timer_lookup_elapsed() { return timer_lookup_elapsed; }
 double CrossMappingGPU::get_timer_cpu_to_gpu_elapsed() { return timer_cpu_to_gpu_elapsed; }
 double CrossMappingGPU::get_timer_gpu_to_cpu_elapsed() { return timer_gpu_to_cpu_elapsed; }
 

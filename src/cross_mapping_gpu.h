@@ -22,6 +22,8 @@ public:
     double get_timer_cpu_to_gpu_sum() override;
     double get_timer_gpu_to_cpu_sum() override;
 
+    double get_timer_knn_elapsed() override;
+    double get_timer_lookup_elapsed() override;
     double get_timer_cpu_to_gpu_elapsed() override;
     double get_timer_gpu_to_cpu_elapsed() override;
 
@@ -34,6 +36,8 @@ protected:
     double timer_cpu_to_gpu_sum = 0;
     double timer_gpu_to_cpu_sum = 0;
 
+    double timer_knn_elapsed = 0;
+    double timer_lookup_elapsed = 0;
     double timer_cpu_to_gpu_elapsed = 0;
     double timer_gpu_to_cpu_elapsed = 0;
 };

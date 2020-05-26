@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include <argh.h>
 #include <highfive/H5DataSet.hpp>
@@ -68,10 +69,10 @@ protected:
 template <class T> class EmbeddingDimMPIWorker : public MPIWorker
 {
 public:
-    EmbeddingDimMPIWorker(const DataFrame df, bool verbose, MPI_Comm comm)
+    EmbeddingDimMPIWorker(const DataFrame df, bool verbose, int rank, MPI_Comm comm)
         : MPIWorker(comm),
           embedding_dim(std::unique_ptr<EmbeddingDim>(new T(20, 1, 1, true))),
-          dataframe(df), verbose(verbose)
+          dataframe(df), verbose(verbose), rank(rank)
     {
     }
     ~EmbeddingDimMPIWorker() {}
@@ -85,6 +86,7 @@ protected:
     std::unique_ptr<EmbeddingDim> embedding_dim;
     DataFrame dataframe;
     bool verbose;
+    int rank;
     float timer_knn = 0;
     float timer_lookup = 0;
     float timer_cpu_to_gpu = 0;
@@ -92,6 +94,9 @@ protected:
 
     void do_task(nlohmann::json &result, const nlohmann::json &task) override
     {
+        Timer timer_ts;
+        timer_ts.start();
+
         const auto id = task["id"];
         const auto ts = dataframe.columns[id];
         const auto best_E =
@@ -104,8 +109,14 @@ protected:
 
         result["id"] = id;
         result["E"] = best_E;
+        timer_ts.stop();
 
-        // std::cout << id << " | " << timer_knn << " | " << timer_lookup << " | " << timer_cpu_to_gpu << " | " << timer_cpu_to_gpu << std::endl;
+        // std::cout << id << ", " << timer_ts.elapsed() << ", " << timer_knn << ", " << timer_lookup << ", " << timer_cpu_to_gpu << ", " << timer_gpu_to_cpu << std::endl;
+
+        std::ofstream result_timer;
+        result_timer.open("timer_simplex_result_" + std::to_string(rank) + ".csv", std::ios_base::app);
+        result_timer << id << ", " << timer_knn << ", " << timer_lookup << ", " << timer_cpu_to_gpu << ", " << timer_gpu_to_cpu << std::endl;
+        result_timer.close();
     }
 };
 
@@ -150,17 +161,17 @@ template <class T> class CrossMappingMPIWorker : public MPIWorker
 public:
     CrossMappingMPIWorker(HighFive::DataSet dataset, const DataFrame df,
                           const std::vector<uint32_t> optimal_E, bool verbose,
-                          MPI_Comm comm)
+                          int rank, MPI_Comm comm)
         : MPIWorker(comm), dataset(dataset),
           xmap(std::unique_ptr<CrossMapping>(new T(20, 1, 0, true))),
-          dataframe(df), optimal_E(optimal_E), verbose(verbose)
+          dataframe(df), optimal_E(optimal_E), verbose(verbose), rank(rank)
     {
     }
     ~CrossMappingMPIWorker() {}
 
-    float total_io_time() { return timer_io.elapsed(); }
-    float total_knn_time() { return timer_knn.elapsed(); }
-    float total_lookup_time() { return timer_lookup.elapsed(); }
+    float total_io_time() { return timer_io; }
+    float total_knn_time() { return timer_knn; }
+    float total_lookup_time() { return timer_lookup; }
     float total_cpu_to_gpu_time() { return timer_cpu_to_gpu; }
     float total_gpu_to_cpu_time() { return timer_gpu_to_cpu; }
 
@@ -170,11 +181,15 @@ protected:
     DataFrame dataframe;
     std::vector<uint32_t> optimal_E;
     bool verbose;
-    Timer timer_io;
-    Timer timer_knn;
-    Timer timer_lookup;
-    float timer_cpu_to_gpu = 0;
-    float timer_gpu_to_cpu = 0;
+    int rank;
+    // Timer timer_io_sum;
+    Timer timer_knn_sum;
+    Timer timer_lookup_sum;
+    float timer_io;
+    float timer_knn;
+    float timer_lookup;
+    float timer_cpu_to_gpu;
+    float timer_gpu_to_cpu;
 
     void do_task(nlohmann::json &result, const nlohmann::json &task) override
     {
@@ -188,22 +203,29 @@ protected:
         for (uint32_t i = 0; i < task_size; i++) {
             const auto library = dataframe.columns[start_id + i];
             xmap->run(rhos[i], library, dataframe.columns, optimal_E,
-                      timer_knn, timer_lookup);
+                      timer_knn_sum, timer_lookup_sum);
         }
 
-        timer_cpu_to_gpu = xmap->get_timer_cpu_to_gpu_elapsed();
-        timer_gpu_to_cpu = xmap->get_timer_gpu_to_cpu_elapsed();
+        Timer io;
 
-        timer_io.start();
+        io.start();
         dataset.select({start_id, 0}, {task_size, dataframe.n_columns()})
             .write(rhos);
-        timer_io.stop();
+        io.stop();
+
+        timer_io = io.elapsed();
+        timer_knn = xmap->get_timer_knn_elapsed();
+        timer_lookup = xmap->get_timer_lookup_elapsed();
+        timer_cpu_to_gpu = xmap->get_timer_cpu_to_gpu_elapsed();
+        timer_gpu_to_cpu = xmap->get_timer_gpu_to_cpu_elapsed();
 
         result["start_id"] = start_id;
         result["stop_id"] = stop_id;
 
-        // std::cout << start_id << " | " << timer_knn.elapsed() << " | " << timer_lookup.elapsed() << " | " << timer_cpu_to_gpu << " | " << timer_cpu_to_gpu << std::endl;
-
+        std::ofstream result_timer;
+        result_timer.open("timer_crossmap_result_" + std::to_string(rank) + ".csv", std::ios_base::app);
+        result_timer << start_id << ", " << timer_knn << ", " << timer_lookup << ", " << timer_cpu_to_gpu << ", " << timer_gpu_to_cpu << ", " << timer_io << std::endl;
+        result_timer.close();
     }
 };
 
@@ -259,8 +281,13 @@ void run(int rank, const DataFrame &df, const Parameters &parameters, Timer time
                   << " [ms]" << std::endl;
     } else {
         if (parameters.kernel_type == "cpu") {
+            std::ofstream result_timer;
+            result_timer.open("timer_simplex_result_" + std::to_string(rank) + ".csv");
+            result_timer << "id, timer_knn, timer_lookup, timer_cpu_to_gpu, timer_gpu_to_cpu" << std::endl;
+            result_timer.close();
+
             EmbeddingDimMPIWorker<EmbeddingDimCPU> embedding_dim_worker(
-                df, parameters.verbose, MPI_COMM_WORLD);
+                df, parameters.verbose, rank, MPI_COMM_WORLD);
 
             embedding_dim_worker.run();
             total_knn_time_simplex = embedding_dim_worker.total_knn_time();
@@ -270,8 +297,13 @@ void run(int rank, const DataFrame &df, const Parameters &parameters, Timer time
         }
 #ifdef ENABLE_GPU_KERNEL
         if (parameters.kernel_type == "gpu") {
+            std::ofstream result_timer;
+            result_timer.open("timer_simplex_result_" + std::to_string(rank) + ".csv");
+            result_timer << "id, timer_knn, timer_lookup, timer_cpu_to_gpu, timer_gpu_to_cpu" << std::endl;
+            result_timer.close();
+
             EmbeddingDimMPIWorker<EmbeddingDimGPU> embedding_dim_worker(
-                df, parameters.verbose, MPI_COMM_WORLD);
+                df, parameters.verbose, rank, MPI_COMM_WORLD);
 
             embedding_dim_worker.run();
             total_knn_time_simplex = embedding_dim_worker.total_knn_time();
@@ -298,13 +330,13 @@ void run(int rank, const DataFrame &df, const Parameters &parameters, Timer time
     MPI_Reduce(&total_gpu_to_cpu_time_simplex, &max_gpu_to_cpu_time_simplex, 1, MPI_FLOAT, MPI_MAX, 0,
                MPI_COMM_WORLD);
 
-    if (!rank) {
-        std::cout << "Max kNN (Simplex): " << max_knn_time_simplex << " [ms] | "
-                  << "Max Lookup (Simplex): " << max_lookup_time_simplex << " [ms] | "
-                  << "Max CPU to GPU (Simplex): " << max_cpu_to_gpu_time_simplex << " [ms] | "
-                  << "Max GPU to CPU (Simplex): " << max_gpu_to_cpu_time_simplex << " [ms]"
-                  << std::endl;
-    }
+    // if (!rank) {
+    //     std::cout << "Max kNN (Simplex): " << max_knn_time_simplex << " [ms] | "
+    //               << "Max Lookup (Simplex): " << max_lookup_time_simplex << " [ms] | "
+    //               << "Max CPU to GPU (Simplex): " << max_cpu_to_gpu_time_simplex << " [ms] | "
+    //               << "Max GPU to CPU (Simplex): " << max_gpu_to_cpu_time_simplex << " [ms]"
+    //               << std::endl;
+    // }
 
     MPI_Bcast(optimal_E.data(), optimal_E.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
 
@@ -341,8 +373,13 @@ void run(int rank, const DataFrame &df, const Parameters &parameters, Timer time
                   << std::endl;
     } else {
         if (parameters.kernel_type == "cpu") {
+            std::ofstream result_timer;
+            result_timer.open("timer_crossmap_result_" + std::to_string(rank) + ".csv");
+            result_timer << "id, timer_knn, timer_lookup, timer_cpu_to_gpu, timer_gpu_to_cpu, time_io" << std::endl;
+            result_timer.close();
+
             CrossMappingMPIWorker<CrossMappingCPU> cross_mapping_worker(
-                dataset_corrcoef, df, optimal_E, parameters.verbose,
+                dataset_corrcoef, df, optimal_E, parameters.verbose, rank,
                 MPI_COMM_WORLD);
 
             cross_mapping_worker.run();
@@ -355,8 +392,13 @@ void run(int rank, const DataFrame &df, const Parameters &parameters, Timer time
         }
 #ifdef ENABLE_GPU_KERNEL
         if (parameters.kernel_type == "gpu") {
+            std::ofstream result_timer;
+            result_timer.open("timer_crossmap_result_" + std::to_string(rank) + ".csv");
+            result_timer << "id, timer_knn, timer_lookup, timer_cpu_to_gpu, timer_gpu_to_cpu, time_io" << std::endl;
+            result_timer.close();
+
             CrossMappingMPIWorker<CrossMappingGPU> cross_mapping_worker(
-                dataset_corrcoef, df, optimal_E, parameters.verbose,
+                dataset_corrcoef, df, optimal_E, parameters.verbose, rank,
                 MPI_COMM_WORLD);
 
             cross_mapping_worker.run();
@@ -387,14 +429,14 @@ void run(int rank, const DataFrame &df, const Parameters &parameters, Timer time
     MPI_Reduce(&total_gpu_to_cpu_time_cm, &max_gpu_to_cpu_time_cm, 1, MPI_FLOAT, MPI_MAX, 0,
                MPI_COMM_WORLD);
 
-    if (!rank) {
-        std::cout << "Max output IO Time: " << max_io_time << " [ms] | "
-                  << "Max kNN (Cross Mapping): " << max_knn_time_cm << " [ms] | "
-                  << "Max Lookup (Cross Mapping): " << max_lookup_time_cm << " [ms] | "
-                  << "Max CPU to GPU (Cross Mapping): " << max_cpu_to_gpu_time_cm << " [ms] | "
-                  << "Max GPU to CPU (Cross Mapping): " << max_gpu_to_cpu_time_cm << " [ms]"
-                  << std::endl;
-    }
+    // if (!rank) {
+    //     std::cout << "Max output IO Time: " << max_io_time << " [ms] | "
+    //               << "Max kNN (Cross Mapping): " << max_knn_time_cm << " [ms] | "
+    //               << "Max Lookup (Cross Mapping): " << max_lookup_time_cm << " [ms] | "
+    //               << "Max CPU to GPU (Cross Mapping): " << max_cpu_to_gpu_time_cm << " [ms] | "
+    //               << "Max GPU to CPU (Cross Mapping): " << max_gpu_to_cpu_time_cm << " [ms]"
+    //               << std::endl;
+    // }
 }
 
 void usage(const std::string &app_name)

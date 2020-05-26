@@ -48,6 +48,8 @@ void CrossMappingCPU::run(std::vector<float> &rhos, const Series &library,
 double CrossMappingCPU::get_timer_cpu_to_gpu_sum() { return timer_cpu_to_gpu_sum; }
 double CrossMappingCPU::get_timer_gpu_to_cpu_sum() { return timer_gpu_to_cpu_sum; }
 
+double CrossMappingCPU::get_timer_knn_elapsed() { return timer_knn_elapsed; }
+double CrossMappingCPU::get_timer_lookup_elapsed() { return timer_lookup_elapsed; }
 double CrossMappingCPU::get_timer_cpu_to_gpu_elapsed() { return timer_cpu_to_gpu_elapsed; }
 double CrossMappingCPU::get_timer_gpu_to_cpu_elapsed() { return timer_gpu_to_cpu_elapsed; }
 
