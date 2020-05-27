@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
     } else {
         SimplexMPIWorker worker(argv[1], MPI_COMM_WORLD);
 
-        worker.run();
+        worker.run(rank, 's');
     }
 
     MPI_Finalize();

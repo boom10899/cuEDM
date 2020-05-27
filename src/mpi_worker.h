@@ -10,7 +10,7 @@ public:
     MPIWorker(MPI_Comm comm) : comm(comm) {}
     virtual ~MPIWorker() {}
 
-    void run();
+    void run(int rank, char timer_process_type);
 
 protected:
     MPI_Comm comm;
