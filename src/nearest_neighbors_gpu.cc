@@ -64,10 +64,12 @@ void NearestNeighborsGPU::compute_lut(LUT &out, const Series &library,
         }
     }
 
+    af::sync();
     timer_cpu_to_gpu.start();
     // Copy embedded blocks to GPU
     af::array library_block(library.size(), E, library_block_host.data());
     af::array target_block(target.size(), E, target_block_host.data());
+    af::sync();
     timer_cpu_to_gpu.stop();
 
     // Compute k-nearest neighbors
@@ -84,6 +86,7 @@ void NearestNeighborsGPU::compute_lut(LUT &out, const Series &library,
     // Copy distances and indices to CPU
     idx.host(idx_host.data());
     dist.host(dist_host.data());
+    af::sync();
     timer_gpu_to_cpu.stop();
 
     // std::cout << timer_cpu_to_gpu.elapsed() << " | " << timer_gpu_to_cpu.elapsed() << std::endl;
