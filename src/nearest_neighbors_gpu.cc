@@ -79,6 +79,7 @@ void NearestNeighborsGPU::compute_lut(LUT &out, const Series &library,
     std::vector<uint32_t> idx_host(target.size() * (top_k + 1));
     std::vector<float> dist_host(target.size() * (top_k + 1));
 
+    af::sync();
     timer_gpu_to_cpu.start();
     // Copy distances and indices to CPU
     idx.host(idx_host.data());
