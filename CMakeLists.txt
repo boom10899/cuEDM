@@ -74,7 +74,10 @@ if(ArrayFire_FOUND AND OpenMP_FOUND)
   endif()
 
   target_sources(cuedm PRIVATE src/nearest_neighbors_gpu.cc src/simplex_gpu.cc
-                 src/cross_mapping_gpu.cc src/embedding_dim_gpu.cc)
+                 src/cross_mapping_gpu.cc src/embedding_dim_gpu.cc src/gpu_init.cc)
+
+  add_executable(gpu_init_bench src/gpu_init_bench.cc)
+  target_link_libraries(gpu_init_bench PRIVATE cuedm)
 else()
   message(WARNING "ArrayFire was NOT found, GPU backend is disabled")
 endif()
