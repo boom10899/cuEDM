@@ -11,12 +11,9 @@
 void init() {
     Timer timer_gpu_init;
 
-    int data_size = 10;
-    std::vector<int> data(data_size);
+    int data_size = 8528*8528*2;
+    std::vector<float> data(data_size);
     std::generate(data.begin(), data.end(), std::rand);
-
-    std::vector<int> data_host1(data_size);
-    std::vector<int> data_host2(data_size);
     
     timer_gpu_init.start();
 
@@ -33,10 +30,8 @@ void init() {
         af::setDevice(dev_id);
 
         af::array data_device1(data.size(), 1, data.data());
-        af::array data_device2(data.size(), 1, data.data());
-
-        data_device1.host(data_host1.data());
-        data_device2.host(data_host2.data());
+        
+        af::sync();
     }
     timer_gpu_init.stop();
 
