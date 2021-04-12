@@ -8,8 +8,7 @@ import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
-df = pd.read_csv(path, dtype=np.float32)
+file = h5py.File(path, 'r')
 
-with h5py.File(path.with_suffix(".h5"), "w") as f:
-    f.create_dataset(name="names", data=df.columns, dtype=h5py.string_dtype())
-    f.create_dataset(name="values", data=df)
+for key, data in file.items():
+    data.to_csv(path.with_suffix("." + key + ".csv"), index = False)
